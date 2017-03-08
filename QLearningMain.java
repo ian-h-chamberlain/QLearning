@@ -11,11 +11,9 @@ public class QLearningMain {
         
         obj.printMap();
  
-        /*
-        obj.run();
+        obj.run(10000);
         obj.printResult();
-        ob1j.showPolicy();
-        */
+        obj.showPolicy();
  
         long END = System.currentTimeMillis();
         System.out.println("Time: " + (END - BEGIN) / 1000.0 + " sec.");

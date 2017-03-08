@@ -3,17 +3,19 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
  
-/**
- * @author Kunuk Nykjaer
- */
 public class QLearning {
     final DecimalFormat df = new DecimalFormat("#.##");
  
-    // path finding
+    // q-learning constants
     final double alpha = 0.1;
     final double gamma = 0.9;
+    
+    double[][] Q;	// q-value structure
+    int[][] R;		// reward lookup structure
  
     int size;
     boolean[][] map;
@@ -55,11 +57,25 @@ public class QLearning {
     }
  
     public void init() {        
-    	// TODO set up the reward lookup
+    	// set up the reward and q-values
+    	R = new int[size * size][size * size];
+    	Q = new double[size * size][size * size];
+    	
+    	for (int i=0; i<size * size; i++) {
+    		for (int j=0; j<size * size; j++) {
+    			R[i][j] = -1;	// discourage long paths
+    			Q[i][j] = 0.0;	// initalize q-val to zero
+    		}
+    	}
+    	
+    	// now reward transition to goal point
+    	for (int i=0; i < size*size; i++) {
+    		R[i][startX * size + startY] = 100;
+    	}
     }
     
  
-    void run() {
+    void run(int episodes) {
         /*
          1. Set parameter , and environment reward matrix R 
          2. Initialize matrix Q as zero matrix 
@@ -73,37 +89,57 @@ public class QLearning {
  
         // For each episode
         Random rand = new Random();
-        for (int i = 0; i < 10000; i++) { // train episodes
+        for (int i = 0; i < episodes; i++) { // train episodes
             // Select random initial state
-        	System.out.println();
-        	System.out.print("iteration");
-        	System.out.print(i);
-        	System.out.println();
-        	System.out.print("starting from ");
-        	System.out.println();
+        	System.out.print("iteration ");
+        	System.out.println(i);
+        	System.out.println("starting from ");
         	
-        	// start with random state
-            int state = rand.nextInt();
-            System.out.print(state);
-            System.out.println();
+        	// start in random (valid) state
+            int[] state = new int[] {rand.nextInt(size), rand.nextInt(size)};
 
-            while (state != 0) // goal state
+            while (map[state[0]][state[1]]) {
+            	state = new int[] {rand.nextInt(size), rand.nextInt(size)};
+            }
+
+            System.out.println(state[0] + "," + state[1]);
+
+            while (state[0] != endX || state[1] != endY) // goal state
             {
             	
-            	System.out.print(state);
             	
             	// Select one among all possible actions for the current state
-                int[] actionsFromState = new int[] { 0, 0} ;
+                List<int[]> actionsFromState = new ArrayList<>();
+                
+                // disallow blocked moves and out of bounds moves
+                if (state[0] - 1 >= 0 && !map[state[0]-1][state[1]]) {
+					actionsFromState.add(new int[] {state[0] - 1, state[1]});
+                }
+                if (state[1] - 1 >= 0 && !map[state[0]][state[1]-1]) {
+					actionsFromState.add(new int[] {state[0], state[1]-1});
+                }
+                if (state[0] + 1 < size && !map[state[0]+1][state[1]]) {
+					actionsFromState.add(new int[] {state[0] + 1, state[1]});
+                }
+                if (state[1] + 1 < size && !map[state[0]][state[1]+1]) {
+					actionsFromState.add(new int[] {state[0], state[1]+1});
+                }
                  
                 // Selection strategy is random in this example
-                // change it to e-greedy
-                int index = rand.nextInt(actionsFromState.length);
-                int action = actionsFromState[index];
+                // TODO change it to e-greedy
+                int index = rand.nextInt(actionsFromState.size());
+                int[] action = actionsFromState.get(index);
+                
+                // disallow invalid moves
+                while (map[action[0]][action[1]]) {
+					index = rand.nextInt(actionsFromState.size());
+					action = actionsFromState.get(index);
+                }
  
                 // Action outcome is set to deterministic in this example
                 // Transition probability is 1
                 // what happens when the transition is probabilistic? 
-                int nextState = action; // data structure
+                int[] nextState = action; // data structure
  
                 // Using this possible action, consider to go to the next state
                 double q = Q(state, action);
@@ -115,42 +151,65 @@ public class QLearning {
  
                 // Set the next state as the current state
                 state = nextState;
+
+				System.out.println(state[0] + "," + state[1]);
             }
-            System.out.print(state);
         }
         
     }
  
-    double maxQ(int s) {
-    	// TODO get maximum Q value given state s
-    	return 0.0;
+    double maxQ(int[] state) {
+    	// find maximum q for a qiven state
+    	double max = Q(state, new int[]{0, 0});
+
+    	for (int i=0; i<size; i++) {
+			for (int j=0; j<size; j++) {
+				double nextQ = Q(state, new int[]{i, j});
+				if (nextQ > max) {
+					max = nextQ;
+				}
+			}
+    	}
+    	
+    	return max;
     }
  
-    int policy(int state) {
+    int policy(int[] state) {
     	// TODO decide action given state
+    	// this should be epsilon-greedy, I think
         return 0;
     }
  
-    double Q(int s, int a) {
-    	// TODO lookup q value
-    	return 0.0;
+    double Q(int[] state, int[] action) {
+    	int s = state[0] * size + state[1];
+    	int a = action[0] * size + action[1];
+
+    	return Q[s][a];
     }
  
-    void setQ(int s, int a, double value) {
-    	// TODO update Q value
+    void setQ(int[] state, int[] action, double value) {
+    	int s = state[0] * size + state[1];
+    	int a = action[0] * size + action[1];
+    	
+    	Q[s][a] = value;
     }
  
-    int R(int s, int a) {
-    	// TODO lookup reward function
-    	return 0;
+    int R(int[] state, int[] action) {
+    	int s = state[0] * size + state[1];
+    	int a = action[0] * size + action[1];
+    	
+    	return R[s][a];
     }
  
     void printResult() {
-    	// TODO print result
+    	// TODO print actual result with path
+    	printMap();
     }
  
     void showPolicy() {
     	// TODO print policy
+    	// it seems excessive to show all possible state->action pairs
+    	// but may be useful for debugging
     }
     
     void printMap() {
