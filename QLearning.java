@@ -13,10 +13,11 @@ public class QLearning {
     // q-learning constants
     final double alpha = 0.1;
     final double gamma = 0.9;
+    final double epsilon = .2;
     
     double[][] Q;	// q-value structure
     int[][] R;		// reward lookup structure
- 
+    Random rand = new Random();
     int size;
     boolean[][] map;
     int startX, startY;
@@ -65,12 +66,15 @@ public class QLearning {
     		for (int j=0; j<size * size; j++) {
     			R[i][j] = -1;	// discourage long paths
     			Q[i][j] = 0.0;	// initalize q-val to zero
+    			if(map[j/size][j%size]){
+    				R[i][j] = -50;
+    			}
     		}
     	}
     	
     	// now reward transition to goal point
     	for (int i=0; i < size*size; i++) {
-    		R[i][startX * size + startY] = 100;
+    		R[i][endX * size + endY] = 100;
     	}
     }
     
@@ -86,9 +90,9 @@ public class QLearning {
                 Get maximum Q value of this next state based on all possible actions o 
                 Compute o Set the next state as the current state
          */
- 
+    	
         // For each episode
-        Random rand = new Random();
+        
         for (int i = 0; i < episodes; i++) { // train episodes
             // Select random initial state
         	System.out.print("iteration ");
@@ -132,7 +136,7 @@ public class QLearning {
                 
                 // disallow invalid moves
                 while (map[action[0]][action[1]]) {
-					index = rand.nextInt(actionsFromState.size());
+					index = eGreedy(fold(state),actionsFromState);//rand.nextInt(actionsFromState.size());
 					action = actionsFromState.get(index);
                 }
  
@@ -145,19 +149,74 @@ public class QLearning {
                 double q = Q(state, action);
                 double maxQ = maxQ(nextState);
                 int r = R(state, action);
+                
  
                 double value = q + alpha * (r + gamma * maxQ - q);
+                
                 setQ(state, action, value);
  
                 // Set the next state as the current state
                 state = nextState;
 
-				System.out.println(state[0] + "," + state[1]);
+				System.out.println(state[0] + "," + state[1] + " reward: " + r + " Q: " + q);
             }
         }
         
     }
- 
+    
+    int eGreedy(int state,List<int[]> actions){
+    	if(rand.nextDouble() > epsilon){
+    		double mQ = Double.MIN_VALUE;
+    		int mi = -1;
+    		for(int i = 0; i < actions.size(); i++){
+    			double cur = Q(unfold(state),actions.get(i));
+    			if(cur > mQ){
+    				mQ = cur;
+    				mi = i;
+    			}
+    		}
+    		return mi;
+    	}else{
+    		return rand.nextInt(4);
+    	}
+    }
+    
+    public List<int[]> getPath(){
+    	int[] cur = new int[]{startX,startY};
+    	System.out.println("finding path from (" + startX + ", " + startY + ") to (" + endX + ", " + endY + ")");
+    	List<int[]> ret = new ArrayList<int[]>();
+    	int index = 0;
+    	while(cur[0] != endX || cur[1] != endY){
+    		index++;
+
+    		ret.add(cur);
+    		if(index > 500){
+    			System.out.println("Failed to find a path.");
+    			return ret;
+    		}
+    		cur = bestState(cur);
+    	}
+    	for(int i = 0; i < ret.size(); i++){
+    		System.out.println(ret.get(i)[0] + ", " + ret.get(i)[1]);
+    	}
+    	return ret;
+    }
+    
+    int[] bestState(int[] state){
+    	double max = Q(state, new int[]{0, 0});
+    	int[] maxI = new int[]{0,0};
+    	for (int i=0; i<size; i++) {
+			for (int j=0; j<size; j++) {
+				double nextQ = Q(state, new int[]{i, j});
+				if (nextQ > max) {
+					max = nextQ;
+					maxI = new int[]{i,j};
+				}
+			}
+    	}
+    	return maxI;
+    }
+    
     double maxQ(int[] state) {
     	// find maximum q for a qiven state
     	double max = Q(state, new int[]{0, 0});
@@ -174,11 +233,52 @@ public class QLearning {
     	return max;
     }
  
-    int policy(int[] state) {
+    int[] unfold(int i){
+    	return new int[]{i/size,i%size};
+    }
+    
+    int fold(int[] i){
+    	return i[0] * size + i[1];
+    }
+    
+    int mDist(int[] start, int[] end){
+    	return Math.abs(start[0] - end[0]) + Math.abs(start[1] - end[1]);
+    }
+    /*
+    int policy(int state) {
     	// TODO decide action given state
     	// this should be epsilon-greedy, I think
-        return 0;
-    }
+    	
+    	List<Integer> pos = new ArrayList<Integer>(); 
+    	
+    	double minQ = Double.MAX_VALUE;
+    	double maxQ = Double.MIN_VALUE;
+    	
+    	for(int i = 0; i < size * size; i++){
+    		if( mDist(unfold(state),unfold(i)) != 1){
+    			//if we aren't adjacent skip.
+    			continue;
+    		}
+    		pos.add(i);
+    		double cur = Q(unfold(state),unfold(i));
+    		if(cur > maxQ){
+    			maxQ = cur;
+    		}
+    		if(cur < minQ){
+    			minQ = cur;
+    		}
+    	}
+    	double total = 0;
+    	double running = 0;
+    	for(int i = 0; i < pos.size(); i++){
+    		total += Q(unfold(state),unfold(pos.get(i)));
+    	}
+    	double random = new Random().nextDouble();
+    	for(int i = 0; i < pos.size(); i++){
+    		running += Q(unfold(state),unfold(pos.get(i)));
+    		if(random < running + min )
+    	}
+    }*/
  
     double Q(int[] state, int[] action) {
     	int s = state[0] * size + state[1];
@@ -218,11 +318,22 @@ public class QLearning {
     		System.out.print("-");
     	}
     	System.out.println("");
+    	List<int[]> path = getPath();
     	for (int i=0; i<size; i++) {
 			System.out.print("|");
     		for (int j=0; j<size; j++) {
+    			boolean inPath = false;
+    			for(int k = 0; k < path.size(); k++){
+    				int[] pos = path.get(k);
+    				if(pos[0] == i && pos[1] == j){
+    					inPath = true;
+    				}
+    			}
+    			
     			if (i == startX && j == startY) {
     				System.out.print("S ");
+    			}else if(inPath){
+    				System.out.print("* ");
     			}
     			else if (i == endX && j == endY) {
     				System.out.print("G ");
