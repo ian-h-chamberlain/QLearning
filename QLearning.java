@@ -1,9 +1,12 @@
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Random;
  
@@ -56,6 +59,20 @@ public class QLearning {
     	
         init();
     }
+    
+	public static void WriteCSV(String filename, String contents){
+		try {
+			Calendar.getInstance();
+			PrintWriter writer = new PrintWriter(filename + Calendar.getInstance().getTimeInMillis() + ".csv","UTF-8");
+			writer.write(contents);
+			writer.close();
+		}catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+	}
  
     public void init() {        
     	// set up the reward and q-values
@@ -92,12 +109,15 @@ public class QLearning {
          */
     	
         // For each episode
+    	String CSV = "";
         
         for (int i = 0; i < episodes; i++) { // train episodes
             // Select random initial state
         	System.out.print("iteration ");
         	System.out.println(i);
         	System.out.println("starting from ");
+        	
+        	double totalReward = 0;
         	
         	// start in random (valid) state
             int[] state = new int[] {rand.nextInt(size), rand.nextInt(size)};
@@ -157,11 +177,12 @@ public class QLearning {
  
                 // Set the next state as the current state
                 state = nextState;
-
-				System.out.println(state[0] + "," + state[1] + " reward: " + r + " Q: " + q);
+                totalReward += q;
+				//System.out.println(state[0] + "," + state[1] + " reward: " + r + " Q: " + q);
             }
+            CSV += totalReward + "\n";
         }
-        
+        WriteCSV("output",CSV);
     }
     
     int eGreedy(int state,List<int[]> actions){
@@ -183,7 +204,7 @@ public class QLearning {
     
     public List<int[]> getPath(){
     	int[] cur = new int[]{startX,startY};
-    	System.out.println("finding path from (" + startX + ", " + startY + ") to (" + endX + ", " + endY + ")");
+    	//System.out.println("finding path from (" + startX + ", " + startY + ") to (" + endX + ", " + endY + ")");
     	List<int[]> ret = new ArrayList<int[]>();
     	int index = 0;
     	while(cur[0] != endX || cur[1] != endY){
@@ -191,14 +212,14 @@ public class QLearning {
 
     		ret.add(cur);
     		if(index > 500){
-    			System.out.println("Failed to find a path.");
+//    			System.out.println("Failed to find a path.");
     			return ret;
     		}
     		cur = bestState(cur);
     	}
-    	for(int i = 0; i < ret.size(); i++){
-    		System.out.println(ret.get(i)[0] + ", " + ret.get(i)[1]);
-    	}
+//    	for(int i = 0; i < ret.size(); i++){
+//    		System.out.println(ret.get(i)[0] + ", " + ret.get(i)[1]);
+//    	}
     	return ret;
     }
     
